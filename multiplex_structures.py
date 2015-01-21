@@ -19,6 +19,7 @@ import datetime
 from dateutil import parser
 import psycopg2
 
+
 class PaperAuthorMultiplex():
     'Paper Citation and Author Collaboration Multiplex Structure'
 
@@ -29,26 +30,36 @@ class PaperAuthorMultiplex():
         #create empty multiplex structure
         self.collab = gt.Graph(directed=False)
         self.citation = gt.Graph(directed=True)
+
         self.citation.vertex_properties['year']=self.citation.new_vertex_property('object')
         self.citation.vertex_properties['_graphml_vertex_id']=self.citation.new_vertex_property('string')
         self.citation.edge_properties['year']=self.citation.new_edge_property('object')
-#        self.collab.vertex_properties['year']=self.collab.new_vertex_property('object')
+        
+        self.collab.vertex_properties['year']=self.collab.new_vertex_property('object')
         self.collab.vertex_properties['_graphml_vertex_id']=self.collab.new_vertex_property('string')
         self.collab.edge_properties['first_year_collaborated']=self.collab.new_edge_property('object')
-        
-    
+
         self._multiplex_collab = self.collab.new_vertex_property('object')
         self._multiplex_citation = self.citation.new_vertex_property('object')
         
         self._collab_graphml_vertex_id_to_gt_id = {}
         self._citation_graphml_vertex_id_to_gt_id = {}
-    
+
+        # to turn the collaboration network into weighted:
+        self.collab.edge_properties['weight']=self.collab.new_edge_property('int')
+        self.collab.edge_properties['dates']=self.collab.new_edge_property('object')
+        
+        
     
 ################################################################
     ##
     #Function to add new papers, incl. collaborations
     def add_paper(self,paper_id,year,author_list,update_collaborations=True):
-        '''Add a paper with paper_id (str), publication year (any standard date format) and authors specified in author_list (list<str>) to the multiplex. Collaborations are automatically updated, unless otherwise specified.'''
+        '''
+        Add a paper with paper_id (str), publication year (any standard date format) and authors specified in author_list (list<str>) to the multiplex.
+        Collaborations are automatically updated, unless otherwise specified.
+        VN: the function 
+        '''
         
         #try whether paper exists already in citation network
         try:
@@ -67,29 +78,13 @@ class PaperAuthorMultiplex():
         
         #add collaborations between authors on collab network
         if update_collaborations == True:
-            #first add authors to collab network, if not there already
-            for author in author_list:
-                try:
-                    new_author=self.collab.vertex(self._collab_graphml_vertex_id_to_gt_id[author])
-                except KeyError:
-                    new_author = self.collab.add_vertex()
-                    self._collab_graphml_vertex_id_to_gt_id[author]=self.collab.vertex_index[new_author]
-                    self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author
-                    self._multiplex_collab[new_author]={}
-                #add multiplex information
-                self._multiplex_collab[new_author][new_paper]=True
-                self._multiplex_citation[new_paper][new_author]=True
+            if len(author_list) == 1:
+                self.add_collaboration(author_list[0], author_list[0], year, new_paper)
                 
             #add collaborations, if older, registered collaborations do not exist
             for author_comb in itertools.combinations(author_list,2):
-                a1_gt_id = self._collab_graphml_vertex_id_to_gt_id[author_comb[0]]
-                a2_gt_id = self._collab_graphml_vertex_id_to_gt_id[author_comb[1]]
-                e = self.collab.edge(a1_gt_id,a2_gt_id)
-                if e == None:
-                    e = self.collab.add_edge(a1_gt_id,a2_gt_id)
-                if None in (self.collab.edge_properties['first_year_collaborated'][e], parse_date(year)) or self.collab.edge_properties['first_year_collaborated'][e]>parse_date(year):
-                    self.collab.edge_properties['first_year_collaborated'][e]=parse_date(year)        
-
+                self.add_collaboration(author_comb[0], author_comb[0], year, new_paper)
+                
         return new_paper
 
 ################################################################
@@ -110,6 +105,7 @@ class PaperAuthorMultiplex():
         except KeyError:
             new_author = self.collab.add_vertex()
             self._collab_graphml_vertex_id_to_gt_id[author_id]=self.collab.vertex_index[new_author]
+            self.collab.vertex_properties['year'][new_author]=parse_date(year)
             self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author_id
             self._multiplex_collab[new_author]={}
         
@@ -145,8 +141,11 @@ class PaperAuthorMultiplex():
 ################################################################    
     ##
     #Function to add plain new collaboration, independent of papers, from other sources
-    def add_collaboration(self,author1, author2, year):
-        '''Add collaboration between two authors'''
+    def add_collaboration(self,author1, author2, year,vpaper=None):
+        '''
+        Add collaboration between two authors
+        if provided `vpaper` (citations vertex), updates mutiplex structure
+        '''
         
         if author1==author2: #simply add the author to the network, if not existing
             try:
@@ -154,8 +153,13 @@ class PaperAuthorMultiplex():
             except KeyError:
                 new_author = self.collab.add_vertex()
                 self._collab_graphml_vertex_id_to_gt_id[author]=self.collab.vertex_index[new_author]
+                self.collab.vertex_properties['year'][new_author]=parse_date(year)
                 self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author1
                 self._multiplex_collab[new_author]={}    
+
+            if vpaper:
+                self._multiplex_collab[new_author][vpaper]=True
+                self._multiplex_citation[vpaper][new_author]=True
             
         else: 
             for author in [author1,author2]:
@@ -164,20 +168,29 @@ class PaperAuthorMultiplex():
                 except KeyError:
                     new_author = self.collab.add_vertex()
                     self._collab_graphml_vertex_id_to_gt_id[author]=self.collab.vertex_index[new_author]
+                    self.collab.vertex_properties['year'][new_author]=parse_date(year)
                     self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author
                     self._multiplex_collab[new_author]={}
-                            
+                    
+            if vpaper:
+                self._multiplex_collab[new_author][vpaper]=True
+                self._multiplex_citation[vpaper][new_author]=True
+
             #add collaborations, if older, registered collaborations do not exist
             a1_gt_id = self._collab_graphml_vertex_id_to_gt_id[author1]
             a2_gt_id = self._collab_graphml_vertex_id_to_gt_id[author2]
-            e = self.collab.edge(a1_gt_id,a2_gt_id)
+            e = self.collab.edge(a1_gt_id, a2_gt_id)
+            
             if e == None:
-                e = self.collab.add_edge(a1_gt_id,a2_gt_id)
-            if None in (self.collab.edge_properties['first_year_collaborated'][e], parse_date(year)) or self.collab.edge_properties['first_year_collaborated'][e]>parse_date(year):
+                e = self.collab.add_edge(a1_gt_id, a2_gt_id)
+                self.collab.edge_properties['weight'][e] = 1
+                self.collab.edge_properties['dates'][e] = CollabDates( parse_date(year) )
+            elif parse_date(year) not in self.collab.edge_properties['dates'][e]:
+                self.collab.edge_properties['weight'][e] += 1
+                self.collab.edge_properties['dates'][e].add_date( parse_date(year) )
+                
+            if    None in (self.collab.edge_properties['first_year_collaborated'][e], parse_date(year))   or   self.collab.edge_properties['first_year_collaborated'][e] > parse_date(year):
                 self.collab.edge_properties['first_year_collaborated'][e]=parse_date(year)
-
-
-
 
 
 ###############################################################
@@ -211,6 +224,7 @@ class PaperAuthorMultiplex():
                 #see whether paper is already in
                 paper = self.citation.vertex(self._citation_graphml_vertex_id_to_gt_id[paper_id])
                 self.citation.vertex_properties['year'][paper]=year
+                # add the citation dates to the citation network
                 for citation in paper.in_edges():
                     self.citation.edge_properties['year'][citation]=year
             except KeyError:
@@ -873,9 +887,68 @@ class PaperAuthorMultiplex():
                         
 ##################################################################################################################
 ##################################################################################################################
-#Define module-wide functions
+#Define other classes and module-wide functions
+
+class CollabDates():
+    
+    def __init__(self, year=None):
+        self.dates = numpy.array([])
+        if year:
+            self.dates = numpy.append( self.dates,  parse_date(year) )
+
+    def __eq__(self, year):
+        if isinstance(year, CollabDates):
+            year = year.dates[0]
+        print year
+        y = parse_date(year)
+        return self.dates == y
+
+    def __ne__(self, year):
+        if isinstance(year, CollabDates):
+            year = year.dates[0]
+        print year
+        y = parse_date(year)
+        return self.dates  != y
+
+    def __gt__(self, year):
+        if isinstance(year, CollabDates):
+            year = year.dates[0]
+        print year
+        y = parse_date(year)
+        return self.dates > y
+
+    def __lt__(self, year):
+        if isinstance(year, CollabDates):
+            year = year.dates[0]
+        print year
+        y = parse_date(year)
+        return self.dates  < y
+
+    def __ge__(self, year):
+        if isinstance(year, CollabDates):
+            year = year.dates[0]
+        print year
+        y = parse_date(year)
+        return self.dates >= y
+
+    def __le__(self, year):
+        if isinstance(year, CollabDates):
+            year = year.dates[0]
+        print year
+        y = parse_date(year)
+        return self.dates  <= y
+
+    
+    def __iter__(self):
+        for d in self.dates:
+                yield d
+                
+    def add_date(self, year):
+        self.dates = numpy.append( self.dates,  parse_date(year) )
 
 
+        
+########## LOAD A MULTILAYER NETWORK
 def load(filename):
     '''
     Create a `multiplex` object and populate it from a ZIP pickle
