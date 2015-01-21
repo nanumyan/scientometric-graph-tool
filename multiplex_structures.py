@@ -81,7 +81,6 @@ class PaperAuthorMultiplex():
             if len(author_list) == 1:
                 self.add_collaboration(author_list[0], author_list[0], year, new_paper)
                 
-            #add collaborations, if older, registered collaborations do not exist
             for author_comb in itertools.combinations(author_list,2):
                 self.add_collaboration(author_comb[0], author_comb[0], year, new_paper)
                 
@@ -99,15 +98,8 @@ class PaperAuthorMultiplex():
             self.citation.vertex_properties['_graphml_vertex_id'][new_paper]=paper_id
             self.citation.vertex_properties['year'][new_paper]=parse_date(year)
             self._multiplex_citation[new_paper]={}            
-        
-        try:
-            new_author=self.collab.vertex(self._collab_graphml_vertex_id_to_gt_id[author_id])
-        except KeyError:
-            new_author = self.collab.add_vertex()
-            self._collab_graphml_vertex_id_to_gt_id[author_id]=self.collab.vertex_index[new_author]
-            self.collab.vertex_properties['year'][new_author]=parse_date(year)
-            self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author_id
-            self._multiplex_collab[new_author]={}
+
+        self.__new_author(author_id)
         
         #add multiplex information
         self._multiplex_collab[new_author][new_paper]=True
@@ -120,7 +112,9 @@ class PaperAuthorMultiplex():
     ##
     #Funtion to add citation to citation network
     def add_citation(self,cited_paper,citing_paper):
-        '''Add citation between two paper in citation network.'''
+        '''
+        Add citation between two paper in citation network.
+        '''
         try:
             cited_paper_gt=self._citation_graphml_vertex_id_to_gt_id[cited_paper]
         except KeyError:
@@ -148,30 +142,14 @@ class PaperAuthorMultiplex():
         '''
         
         if author1==author2: #simply add the author to the network, if not existing
-            try:
-                new_author=self._collab_graphml_vertex_id_to_gt_id[author1]
-            except KeyError:
-                new_author = self.collab.add_vertex()
-                self._collab_graphml_vertex_id_to_gt_id[author]=self.collab.vertex_index[new_author]
-                self.collab.vertex_properties['year'][new_author]=parse_date(year)
-                self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author1
-                self._multiplex_collab[new_author]={}    
-
+            self.__new_author(author1)
             if vpaper:
                 self._multiplex_collab[new_author][vpaper]=True
                 self._multiplex_citation[vpaper][new_author]=True
             
         else: 
             for author in [author1,author2]:
-                try:
-                    new_author=self._collab_graphml_vertex_id_to_gt_id[author]
-                except KeyError:
-                    new_author = self.collab.add_vertex()
-                    self._collab_graphml_vertex_id_to_gt_id[author]=self.collab.vertex_index[new_author]
-                    self.collab.vertex_properties['year'][new_author]=parse_date(year)
-                    self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author
-                    self._multiplex_collab[new_author]={}
-                    
+                self.__new_author(author)
             if vpaper:
                 self._multiplex_collab[new_author][vpaper]=True
                 self._multiplex_citation[vpaper][new_author]=True
@@ -185,6 +163,7 @@ class PaperAuthorMultiplex():
                 e = self.collab.add_edge(a1_gt_id, a2_gt_id)
                 self.collab.edge_properties['weight'][e] = 1
                 self.collab.edge_properties['dates'][e] = CollabDates( parse_date(year) )
+                
             elif parse_date(year) not in self.collab.edge_properties['dates'][e]:
                 self.collab.edge_properties['weight'][e] += 1
                 self.collab.edge_properties['dates'][e].add_date( parse_date(year) )
@@ -883,7 +862,20 @@ class PaperAuthorMultiplex():
         #            self._multiplex_collab[v][w]=True
         #f.close()
     
-        
+
+
+        ######
+        ## HELPER FUNCTIONS
+
+        def __new_author(self, author_id):
+            try:
+                new_author=self._collab_graphml_vertex_id_to_gt_id[author_id]
+            except KeyError:
+                new_author = self.collab.add_vertex()
+                self._collab_graphml_vertex_id_to_gt_id[author_id]=self.collab.vertex_index[new_author]
+                self.collab.vertex_properties['year'][new_author]=parse_date(year)
+                self.collab.vertex_properties['_graphml_vertex_id'][new_author]=author_id
+                self._multiplex_collab[new_author]={}
                         
 ##################################################################################################################
 ##################################################################################################################
