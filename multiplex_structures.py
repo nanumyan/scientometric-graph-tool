@@ -562,9 +562,8 @@ class PaperAuthorMultiplex():
 
 
 
-################################################################
-    ##
-    #Function to calculate shortest path in collab network at time of publication
+    ################################################################
+    ## Function to calculate shortest path in collab network at time of publication
     def shortest_path_collab_formation(self,new_collab_year):
         '''Calculate shortest path at time of first collaboration'''
     
@@ -596,10 +595,9 @@ class PaperAuthorMultiplex():
         return shortest_distances
 
 
-################################################################
-    ##
-    #Function to calculate multiplex neighbourhood of v in layer 1. 
-    #Defined as nodes in layer 1, that are the multiplex maps of neighbours of the multiplex map of v.
+    ################################################################
+    ## Function to calculate multiplex neighbourhood of v in layer 1. 
+    ## Defined as nodes in layer 1, that are the multiplex maps of neighbours of the multiplex map of v.
     def multiplex_neighbours(self,vertex_object,layer=None):
         'Returns an iterator of vertices in layer, that are multiplex neighbours of vertex_object.'
         
@@ -630,9 +628,8 @@ class PaperAuthorMultiplex():
             return multiplex_neighbours
 
 
-################################################################
-    ##
-    #Function to get vertex_id's from vertex objects
+    ################################################################
+    ## Function to get vertex_id's from vertex objects
     def vertex_id(self,iterable_of_vertices,layer=None):
         'Returns an iterator of vertex id strings of the vertex objects specified in iterable_of_vertices, being members of layer.'
     
@@ -657,9 +654,8 @@ class PaperAuthorMultiplex():
         if layer=='citation':
             return itertools.imap(ret_citation_vertex_prop,iterable_of_vertices)
 
-################################################################
-    ##
-    #Function to calculate socially biased citations
+    ################################################################
+    ## Function to calculate socially biased citations
     def socially_biased_citations(self):
         '''Calculate number of socially-biased citations'''
         print 'Calculating socially biased citation statistics...'
@@ -699,9 +695,8 @@ class PaperAuthorMultiplex():
 
 
  
-################################################################
-    ##
-    #Function to calculate citations of papers in years yr after yd years
+    ################################################################
+    ## Function to calculate citations of papers in years yr after yd years
     def citation_success(self,yr,yd,perc):
         #create property map
         citation_success=self.citation.new_vertex_property("double")
@@ -755,9 +750,8 @@ class PaperAuthorMultiplex():
         
 
         
-################################################################
-    ##
-    #Pickle the multiplex structure
+    ################################################################
+    ## Pickle the multiplex structure
     def save(self,filename):
         #f = open(filename+'_citation.pickle', 'wb')
         self.citation.save(filename+'_citation.gt')
@@ -815,9 +809,9 @@ class PaperAuthorMultiplex():
             os.remove(filename+'_collab_multiplex.pickle')
             
 
-################################################################
-    ##
-    #Unpickle Multiplex Structure
+    ################################################################
+    ## Unpickle Multiplex Structure
+    
     def load(self,filename):
         f = os.path.basename(filename)
         if filename[-8:] != '_pkl.zip':
@@ -846,8 +840,18 @@ class PaperAuthorMultiplex():
                     if tmp[v_id][w_id]==True:
                         w=self.citation.vertex(w_id)
                         self._multiplex_collab[v][w]=True
+
+
+    def copy(self):
+        """
+        Return a deep copy of self. 
+        are also copied."""
+        return PaperAuthorMultiplex(self)
+
+    def __copy__(self):
+        return self.copy()                        
+
     
-                        
 ##################################################################################################################
 ##################################################################################################################
 #Define module-wide functions
