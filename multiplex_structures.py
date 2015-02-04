@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 ##Author: Rene Pfitzner,
 ##August 2013
 ##Updates: Vahan Nanumyan
@@ -168,7 +170,7 @@ class PaperAuthorMultiplex():
                 self._multiplex_collab[new_author][vpaper]=True
                 self._multiplex_citation[vpaper][new_author]=True
 
-            #add collaborations, if none exists FOR THAT DAY
+            # add collaborations, if none exists FOR THAT DAY
             a1_gt_id = self._collab_graphml_vertex_id_to_gt_id[author1]
             a2_gt_id = self._collab_graphml_vertex_id_to_gt_id[author2]
             es = self.collab.edge(a1_gt_id, a2_gt_id, all_edges=True)
@@ -176,7 +178,7 @@ class PaperAuthorMultiplex():
             if es == None:
                 e_new = self.collab.add_edge(a1_gt_id, a2_gt_id)
                 self.collab.edge_properties['year'][e_new] = y
-                self.collab.edge_properties['first_year_collaborated'][e] = y
+                self.collab.edge_properties['first_year_collaborated'][e_new] = y
                 
             else:
                 collab_dates = [self.collab.edge_properties['year'][e] for e in es]
@@ -924,3 +926,4 @@ class CitationExistsAlreadyError(Exception):
 
 class NotOneToOneError(Exception):
     pass
+
